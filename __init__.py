@@ -459,6 +459,16 @@ class remote:
 		self.on(zone, try_hard = False)
 		return self._step_value(temperature, temperature_min, temperature_max, 'temperature', zone)
 
+	def _max_brightness(self, zone = None):
+		if zone is None:
+			message = {'button': 'max'}
+		else:
+			message = {
+				'button': 'zone_max',
+				'zone': zone
+			}
+		return self._send_button(message)
+
 	def _rgb_to_hue(self, r, g, b):
 		r = r / 255.0
 		g = g / 255.0
@@ -530,7 +540,7 @@ class remote:
 
 		if brightness == 255:
 			if 'has_max_brightness' in self._config['features']:
-				return self.max_brightness(zone)
+				return self._max_brightness(zone)
 
 		brightness_min = self._config['brightness_range'][0]
 		brightness_max = self._config['brightness_range'][1]
@@ -626,19 +636,6 @@ class remote:
 			message['retries'] = self._config['retries'] * 2
 			message['delay'] = self._config['delay'] * 2
 
-		return self._send_button(message)
-
-	def max_brightness(self, zone = None):
-		if 'has_max_brightness' not in self._config['features']:
-			return self.set_brightness(255, zone)
-			
-		if zone is None:
-			message = {'button': 'max'}
-		else:
-			message = {
-				'button': 'zone_max',
-				'zone': zone
-			}
 		return self._send_button(message)
 
 	def white(self, zone = None):
