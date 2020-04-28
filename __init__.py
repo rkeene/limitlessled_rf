@@ -9,8 +9,8 @@ class remote:
 	}
 	_remote_type_parameters_map = {
 		'rgbw': {
-			'retries':  5,
-			'delay':    0.02,
+			'retries':  3,
+			'delay':    0.005,
 			'channels': [9, 40, 71],
 			'syncword': [0x258B, 0x147A],
 			'features': [
@@ -89,7 +89,9 @@ class remote:
 				'temperature_up':   0x0E,
 				'temperature_down': 0x0F
 			}
-		},
+		}
+	}
+	_remote_type_parameters_map_unimplemented = {
 		'rgb+cct': {
 			'channels': [8, 39, 70],
 			'syncword': [0x1809, 0x7236]
