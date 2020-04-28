@@ -9,6 +9,8 @@ class remote:
 	}
 	_remote_type_parameters_map = {
 		'rgbw': {
+			'retries':  5,
+			'delay':    0.02,
 			'channels': [9, 40, 71],
 			'syncword': [0x258B, 0x147A],
 			'features': [
@@ -48,6 +50,8 @@ class remote:
 			}
 		},
 		'cct': {
+			'retries':  10,
+			'delay':    0.5,
 			'channels': [4, 39, 74],
 			'syncword': [0x55AA, 0x050A],
 			'brightness_range': [0, 9],
@@ -101,9 +105,6 @@ class remote:
 	}
 
 	def __init__(self, radio, remote_type, remote_id, message_id = None, config = None):
-		if not radio.initialize():
-			raise ValueError('Radio initialization failed')
-
 		# Pull in the config for this remote type
 		self._config = self._get_type_parameters(remote_type)
 
@@ -152,6 +153,8 @@ class remote:
 
 		setattr(self, '_compute_button_message', getattr(self, '_compute_button_message_' + remote_type))
 		setattr(self, '_parse_button_message', getattr(self, '_parse_button_message_' + remote_type))
+		setattr(self, 'pair', getattr(self, '_pair_' + remote_type))
+		setattr(self, 'unpair', getattr(self, '_unpair_' + remote_type))
 
 		return config
 
@@ -225,6 +228,25 @@ class remote:
 		button_info.update(self._compute_button_and_zone_from_button_id(button_id))
 
 		return button_info
+
+	def _pair_cct(self, zone):
+		self._send_button({
+			'button': 'zone_on',
+			'zone': zone
+		})
+
+		# Ensure that the "on" button cannot be hit soon after
+		# because it might trigger the unpair flow
+		time.sleep(5)
+		return True
+
+	def _unpair_cct(self, zone):
+		for retry in range(7):
+			self._send_button({
+				'button': 'zone_on',
+				'zone': zone
+			})
+		return True
 
 	def _compute_button_message_rgbw(self, button_info):
 		remote_id = button_info['remote_id']
@@ -311,6 +333,20 @@ class remote:
 			button_info['brightness'] = brightness
 
 		return button_info
+
+	def _pair_rgbw(self, zone):
+		self._send_button({
+			'button': 'zone_on',
+			'zone': zone
+		})
+		return False
+
+	def _unpair_rgbw(self, zone):
+		self._send_button({
+			'button': 'zone_white',
+			'zone': zone
+		})
+		return False
 
 	def _get_next_message_id(self):
 		# Determine next message ID
@@ -561,12 +597,16 @@ class remote:
 
 		# Increase retries and delay for on/off to ensure
 		# that these important messages are delivered
-		message['retries'] = 15
-		message['delay'] = 0.2
+		message['retries'] = self._config['retries'] * 2
+		message['delay'] = self._config['delay'] * 2
 
 		return self._send_button(message)
 
-	def off(self, zone = None):
+	def off(self, zone = None, dim = True):
+		# Dim the bulbs so that when turned on they are not bright
+		if dim:
+			self.set_brightness(1, zone)
+
 		if zone is None:
 			message = {
 				'button': 'off',
@@ -579,8 +619,8 @@ class remote:
 
 		# Increase retries and delay for on/off to ensure
 		# that these important messages are delivered
-		message['retries'] = 15
-		message['delay'] = 0.2
+		message['retries'] = self._config['retries'] * 2
+		message['delay'] = self._config['delay'] * 2
 
 		return self._send_button(message)
 
@@ -614,11 +654,3 @@ class remote:
 				'zone': zone
 			}
 		return self._send_button(message)
-
-	def pair(self, zone):
-		# XXX
-		return False
-
-	def unpair(self, zone):
-		# XXX
-		return False
