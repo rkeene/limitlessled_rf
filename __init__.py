@@ -2,7 +2,6 @@
 
 import random
 import time
-import math
 
 class remote:
 	_remote_type_alias_map = {
@@ -440,12 +439,21 @@ class remote:
 		g = (rgb >>  8) & 0xff
 		b =  rgb        & 0xff
 
+		# If the value is really a shade of white
+		# encode the brightness as a negative value
+		# where 0 is -1, 1 is -2, etc
 		if r == g and g == b:
 			return (r * -1) - 1
 
+		# Compute the hue of the RGB value (ignore
+		# luminance and saturation)
 		h = self._rgb_to_hue(r, g, b)
 
+		# Convert the hue into a LimitlessLED value
+		# which is really just the position along the
+		# color strip, offset
 		color = ((h / 360.0) * 255.0) + 26
+		color = color % 256
 
 		color = int(color + 0.5)
 
