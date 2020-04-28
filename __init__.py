@@ -450,13 +450,13 @@ class remote:
 	def _step_brightness(self, brightness, brightness_min, brightness_max, zone = None):
 		# Select the appropriate zone before sending the steps
 		# to ensure they reach the correct bulbs
-		self.on(zone)
+		self.on(zone, try_hard = False)
 		return self._step_value(brightness, brightness_min, brightness_max, 'brightness', zone)
 
 	def _step_temperature(self, temperature, temperature_min, temperature_max, zone = None):
 		# Select the appropriate zone before sending the steps
 		# to ensure they reach the correct bulbs
-		self.on(zone)
+		self.on(zone, try_hard = False)
 		return self._step_value(temperature, temperature_min, temperature_max, 'temperature', zone)
 
 	def _rgb_to_hue(self, r, g, b):
@@ -561,7 +561,7 @@ class remote:
 			return False
 
 		# Turn on the appropriate zone to select it
-		self.on(zone)
+		self.on(zone, try_hard = False)
 
 		# Press the button
 		return self._send_button({'button': 'set_color', 'color': value})
@@ -588,7 +588,7 @@ class remote:
 		else:
 			return self._step_temperature(temperature, temperature_output_low, temperature_output_high, zone)
 
-	def on(self, zone = None):
+	def on(self, zone = None, try_hard = False):
 		if zone is None:
 			message = {'button': 'on'}
 		else:
@@ -599,12 +599,13 @@ class remote:
 
 		# Increase retries and delay for on/off to ensure
 		# that these important messages are delivered
-		message['retries'] = self._config['retries'] * 2
-		message['delay'] = self._config['delay'] * 2
+		if try_hard:
+			message['retries'] = self._config['retries'] * 2
+			message['delay'] = self._config['delay'] * 2
 
 		return self._send_button(message)
 
-	def off(self, zone = None, dim = True):
+	def off(self, zone = None, dim = True, try_hard = False):
 		# Dim the bulbs so that when turned on they are not bright
 		if dim:
 			self.set_brightness(1, zone)
@@ -621,8 +622,9 @@ class remote:
 
 		# Increase retries and delay for on/off to ensure
 		# that these important messages are delivered
-		message['retries'] = self._config['retries'] * 2
-		message['delay'] = self._config['delay'] * 2
+		if try_hard:
+			message['retries'] = self._config['retries'] * 2
+			message['delay'] = self._config['delay'] * 2
 
 		return self._send_button(message)
 
