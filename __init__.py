@@ -336,8 +336,17 @@ class remote:
 		message = self._compute_button_message(button_info)
 
 		# Transmit
-		self._debug("Sending {}={} n={} times with a {}s delay".format(button_info, message, self._config['retries'], self._config['delay']))
-		self._radio.multi_transmit(message, self._config['channels'], self._config['retries'], self._config['delay'])
+		if 'delay' in button_info:
+			delay = button_info['delay']
+		else:
+			delay = self._config['delay']
+		if 'retries' in button_info:
+			retries = button_info['retries']
+		else:
+			retries = self._config['retries']
+
+		self._debug("Sending {}={} n={} times with a {}s delay".format(button_info, message, retries, delay))
+		self._radio.multi_transmit(message, self._config['channels'], retries, delay)
 
 		return True
 
@@ -404,14 +413,12 @@ class remote:
 		# Select the appropriate zone before sending the steps
 		# to ensure they reach the correct bulbs
 		self.on(zone)
-		time.sleep(0.1)
 		return self._step_value(brightness, brightness_min, brightness_max, 'brightness', zone)
 
 	def _step_temperature(self, temperature, temperature_min, temperature_max, zone = None):
 		# Select the appropriate zone before sending the steps
 		# to ensure they reach the correct bulbs
 		self.on(zone)
-		time.sleep(0.1)
 		return self._step_value(temperature, temperature_min, temperature_max, 'temperature', zone)
 
 	def _rgb_to_hue(self, r, g, b):
@@ -460,9 +467,6 @@ class remote:
 		self._debug("RGB = \x1b[38;2;%i;%i;%im%06x\x1b[0m; Hue = %s; Color = %i" % (r, g, b, rgb, str(h * 360), color))
 
 		return color
-
-	def rgb_to_color(self, rgb):
-		return self._rgb_to_color(rgb)
 
 	def raw_send_button(self, button_info):
 		return self._send_button(button_info)
@@ -520,7 +524,6 @@ class remote:
 
 		# Turn on the appropriate zone to select it
 		self.on(zone)
-		time.sleep(0.1)
 
 		# Press the button
 		return self._send_button({'button': 'set_color', 'color': value})
@@ -555,16 +558,30 @@ class remote:
 				'button': 'zone_on',
 				'zone': zone
 			}
+
+		# Increase retries and delay for on/off to ensure
+		# that these important messages are delivered
+		message['retries'] = 15
+		message['delay'] = 0.2
+
 		return self._send_button(message)
 
 	def off(self, zone = None):
 		if zone is None:
-			message = {'button': 'off'}
+			message = {
+				'button': 'off',
+			}
 		else:
 			message = {
 				'button': 'zone_off',
 				'zone': zone
 			}
+
+		# Increase retries and delay for on/off to ensure
+		# that these important messages are delivered
+		message['retries'] = 15
+		message['delay'] = 0.2
+
 		return self._send_button(message)
 
 	def max_brightness(self, zone = None):
