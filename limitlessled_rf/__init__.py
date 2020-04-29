@@ -656,3 +656,31 @@ class Remote:
 				'zone': zone
 			}
 		return self._send_button(message)
+
+	# Methods to query remote identity and state
+	def get_zone_ids(self):
+		# All current remotes have 4 zones
+		# XXX Make this a property
+		return [1, 2, 3, 4]
+
+	def get_type(self):
+		return self._type
+
+	def get_id(self):
+		return self._id
+
+	def get_message_id(self):
+		return self._message_id
+
+	def get_brightness_range(self):
+		# Brightness is always a fixed range
+		return [0, 255]
+
+	def get_temperature_range(self):
+		# If the remote has no control over the temperature this
+		# query gets a null response
+		if 'temperature_input_range' not in self._config:
+			return None
+
+		# Otherwise return with what we accept as temperature ranges
+		return self._config['temperature_input_range']

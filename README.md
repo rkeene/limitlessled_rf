@@ -18,6 +18,12 @@ Control LimitlessLED bulbs through a directly attached radio.  The radio object 
     limitlessled_rf.Remote.white(zone = None) -> boolean
     limitlessled_rf.Remote.pair(zone) -> boolean
     limitlessled_rf.Remote.unpair(zone) -> boolean
+    limitlessled_rf.Remote.get_zone_ids() -> list of ints
+    limitlessled_rf.Remote.get_type() -> string
+    limitlessled_rf.Remote.get_id() -> int
+    limitlessled_rf.Remote.get_message_id() -> int
+    limitlessled_rf.Remote.get_brightness_range() -> list of ints
+    limitlessled_rf.Remote.get_temperature_range() -> llist of ints
 
 ### Constructor
 
