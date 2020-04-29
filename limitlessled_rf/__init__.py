@@ -56,7 +56,7 @@ class Remote:
 			'syncword': [0x55AA, 0x050A],
 			'brightness_range': [0, 9],
 			'temperature_output_range': [9, 0],
-			'temperature_input_range':  [9000, 3000],
+			'temperature_input_range':  [3000, 6500],
 			'features': [
 				'has_max_brightness',
 				'has_brightness',
@@ -606,9 +606,9 @@ class Remote:
 		temperature_output_warmest = self._config['temperature_output_range'][1]
 
 		# Clamp the color temperature to something this remote supports
-		if kelvins < temperature_input_warmest:
+		if kelvins < min(temperature_input_warmest, temperature_input_coldest):
 			kelvins = temperature_input_warmest
-		elif kelvins > temperature_input_coldest:
+		elif kelvins > max(temperature_input_coldest, temperature_input_warmest):
 			kelvins = temperature_input_coldest
 
 		temperature = self._scale_int(kelvins, temperature_input_coldest, temperature_input_warmest, temperature_output_coldest, temperature_output_warmest)
