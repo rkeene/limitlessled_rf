@@ -9,8 +9,8 @@ class Remote:
 	}
 	_remote_type_parameters_map = {
 		'rgbw': {
-			'retries':  3,
-			'delay':    0.005,
+			'retries':  10,
+			'delay':    0.001,
 			'channels': [9, 40, 71],
 			'syncword': [0x258B, 0x147A],
 			'features': [
@@ -46,7 +46,7 @@ class Remote:
 				'speed_down': 0x0C,
 				'change_color_mode': 0x0D,
 				'zone_set_brightness': 0x0E,
-				'set_color':  0x0F
+				'zone_set_color':  0x0F
 			}
 		},
 		'cct': {
@@ -255,6 +255,12 @@ class Remote:
 		remote_id = button_info['remote_id']
 		message_id = button_info['message_id']
 
+		# Allow setting color for all zones
+		if button_info['button'] == 'set_color':
+			button_info['button'] = 'zone_set_color'
+			if 'zone' in button_info:
+				del button_info['zone']
+
 		# Allow setting brightness for all zones
 		if button_info['button'] == 'set_brightness':
 			button_info['button'] = 'zone_set_brightness'
@@ -290,11 +296,15 @@ class Remote:
 
 			brightness = brightness << 3
 
-			if 'zone' in button_info:
-				brightness = brightness | button_info['zone']
-
-		elif button_info['button'] == 'set_color':
+		elif button_info['button'] == 'zone_set_color':
 			color = button_info['color']
+
+		# The zone number is also encoded into the brightness byte
+		if 'zone' not in button_info:
+			zone_value = 0
+		else:
+			zone_value = button_info['zone']
+		brightness |= zone_value & 0b111
 
 		# Compute message
 		body = [color, brightness, button_id, message_id]
@@ -345,6 +355,10 @@ class Remote:
 		return False
 
 	def _unpair_rgbw(self, zone):
+		self._send_button({
+			'button': 'zone_on',
+			'zone': zone
+		})
 		self._send_button({
 			'button': 'zone_white',
 			'zone': zone
@@ -523,7 +537,8 @@ class Remote:
 	def raw_read_button(self):
 		channel = self._config['channels'][0]
 		self._radio.set_syncword(self._config['syncword'])
-		data = self._radio.receive(channel = channel, wait = True, wait_time = 1)
+		self._radio.start_listening(channel)
+		data = self._radio.receive(channel = channel, wait = True, wait_time = 0)
 		message = self._parse_button_message(data)
 		return message
 
@@ -571,11 +586,15 @@ class Remote:
 		if 'has_color' not in self._config['features']:
 			return False
 
-		# Turn on the appropriate zone to select it
-		self.on(zone, try_hard = False)
+		# Press the correct color button
+		if zone is None:
+			message = {'button': 'set_color'}
+		else:
+			message = {'button': 'zone_set_color', 'zone': zone}
+		message['color'] = value
 
 		# Press the button
-		return self._send_button({'button': 'set_color', 'color': value})
+		return self._send_button(message)
 
 	def set_temperature(self, kelvins, zone = None):
 		if 'has_temperature' not in self._config['features']:
