@@ -55,8 +55,8 @@ class Remote:
 			'channels': [4, 39, 74],
 			'syncword': [0x55AA, 0x050A],
 			'brightness_range': [0, 9],
-			'temperature_output_range': [0, 9],
-			'temperature_input_range':  [3000, 9000],
+			'temperature_output_range': [9, 0],
+			'temperature_input_range':  [9000, 3000],
 			'features': [
 				'has_max_brightness',
 				'has_brightness',
@@ -442,7 +442,7 @@ class Remote:
 
 		if use_max_button:
 			self._debug("[INITIAL] Going to max {}".format(button_prefix))
-			getattr(self, "max_{}".format(button_prefix))(zone)
+			getattr(self, "_max_{}".format(button_prefix))(zone)
 		else:
 			# Otherwise, step it
 			for step in range(initial_steps):
@@ -600,23 +600,24 @@ class Remote:
 		if 'has_temperature' not in self._config['features']:
 			return False
 
-		temperature_input_low = self._config['temperature_input_range'][0]
-		temperature_input_high = self._config['temperature_input_range'][1]
-		temperature_output_low = self._config['temperature_output_range'][0]
-		temperature_output_high = self._config['temperature_output_range'][1]
+		temperature_input_coldest = self._config['temperature_input_range'][0]
+		temperature_input_warmest = self._config['temperature_input_range'][1]
+		temperature_output_coldest = self._config['temperature_output_range'][0]
+		temperature_output_warmest = self._config['temperature_output_range'][1]
 
 		# Clamp the color temperature to something this remote supports
-		if kelvins < temperature_input_low:
-			kelvins = temperature_input_low
-		elif kelvins > temperature_input_high:
-			kelvins = temperature_input_high
+		if kelvins < temperature_input_warmest:
+			kelvins = temperature_input_warmest
+		elif kelvins > temperature_input_coldest:
+			kelvins = temperature_input_coldest
 
-		temperature = self._scale_int(kelvins, temperature_input_low, temperature_input_high, temperature_output_low, temperature_output_high)
+		temperature = self._scale_int(kelvins, temperature_input_coldest, temperature_input_warmest, temperature_output_coldest, temperature_output_warmest)
+		self._debug("Scaled kelvins={} to a temperature value of {}".format(kelvins, temperature))
 
 		if 'can_set_temperature' in self._config['features']:
 			return self._set_temperature(temperature, zone)
 		else:
-			return self._step_temperature(temperature, temperature_output_low, temperature_output_high, zone)
+			return self._step_temperature(temperature, temperature_output_warmest, temperature_output_coldest, zone)
 
 	def on(self, zone = None, try_hard = False):
 		if zone is None:
