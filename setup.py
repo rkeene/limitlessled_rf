@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
 	name="limitlessled_rf",
-	version="0.1",
+	version="0.2",
 	author="Roy Keene",
 	author_email="pypi@rkeene.org",
 	description="Python LimitlessLED via RF",
