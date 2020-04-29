@@ -141,7 +141,8 @@ class Remote:
 		return output
 
 	def _debug(self, message):
-		print("MILITE DEBUG: " + message)
+		if 'debug_log_command' in self._config:
+			self._config['debug_log_command'](message)
 		return None
 
 	def _get_type_parameters(self, remote_type):
