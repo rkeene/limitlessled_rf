@@ -3,7 +3,7 @@
 import random
 import time
 
-class remote:
+class Remote:
 	_remote_type_alias_map = {
 		'fut089': 'rgb+cct'
 	}

@@ -6,18 +6,18 @@ Control LimitlessLED bulbs through a directly attached radio.  The radio object 
 
 ### Synopsis
 
-    limitlessled_rf.remote(radio, remote_type, remote_id, message_id = None, config = None) -> instance
-    limitlessled_rf.remote.raw_send_button(button_info) -> value
-    limitlessled_rf.remote.raw_read_button() -> dictionary
-    limitlessled_rf.remote.set_brightness(brightness, zone = None) -> boolean
-    limitlessled_rf.remote.set_color(rgb, zone = None) -> boolean
-    limitlessled_rf.remote.set_temperature(kelvins, zone = None) -> boolean
-    limitlessled_rf.remote.on(zone = None) -> boolean
-    limitlessled_rf.remote.off(zone = None, dim = True) -> boolean
-    limitlessled_rf.remote.max_brightness(zone = None) -> boolean
-    limitlessled_rf.remote.white(zone = None) -> boolean
-    limitlessled_rf.remote.pair(zone) -> boolean
-    limitlessled_rf.remote.unpair(zone) -> boolean
+    limitlessled_rf.Remote(radio, remote_type, remote_id, message_id = None, config = None) -> instance
+    limitlessled_rf.Remote.raw_send_button(button_info) -> value
+    limitlessled_rf.Remote.raw_read_button() -> dictionary
+    limitlessled_rf.Remote.set_brightness(brightness, zone = None) -> boolean
+    limitlessled_rf.Remote.set_color(rgb, zone = None) -> boolean
+    limitlessled_rf.Remote.set_temperature(kelvins, zone = None) -> boolean
+    limitlessled_rf.Remote.on(zone = None) -> boolean
+    limitlessled_rf.Remote.off(zone = None, dim = True) -> boolean
+    limitlessled_rf.Remote.max_brightness(zone = None) -> boolean
+    limitlessled_rf.Remote.white(zone = None) -> boolean
+    limitlessled_rf.Remote.pair(zone) -> boolean
+    limitlessled_rf.Remote.unpair(zone) -> boolean
 
 ### Constructor
 
@@ -114,7 +114,7 @@ the zone before it can be unpaired.  Once a bulb is unpaired from a given remote
     		time.sleep(0.1)
     
     	# LT8900 compatible radio
-    	radio = lt8900_spi.radio(0, 0, {
+    	radio = lt8900_spi.Radio(0, 0, {
     		'reset_command': reset_module_via_gpio,
     		'reset_command_gpio': reset_gpio
     	})
@@ -125,7 +125,7 @@ the zone before it can be unpaired.  Once a bulb is unpaired from a given remote
     	return radio
     
     radio = init_radio()
-    remote = limitlessled_rf.remote(radio, 'rgbw', 0x51F0)
+    remote = limitlessled_rf.Remote(radio, 'rgbw', 0x51F0)
     
     while True:
     	remote.set_color(random.randint(0, 0xffffff))
