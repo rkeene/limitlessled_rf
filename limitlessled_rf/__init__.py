@@ -200,7 +200,7 @@ class Remote:
 
 		# Compute message trailer
 		## Include a CRC, for good measure ?
-		crc = 0
+		crc = len(header) + len(body) + 1
 		for byte in header + body:
 			crc = crc + byte
 		crc = crc & 0xff
