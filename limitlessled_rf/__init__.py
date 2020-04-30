@@ -51,12 +51,12 @@ class Remote:
 		},
 		'cct': {
 			'retries':  10,
-			'delay':    0.5,
+			'delay':    0.1,
 			'channels': [4, 39, 74],
 			'syncword': [0x55AA, 0x050A],
 			'brightness_range': [0, 9],
-			'temperature_output_range': [9, 0],
-			'temperature_input_range':  [3000, 6500],
+			'temperature_output_range': [0, 9],
+			'temperature_input_range':  [6500, 3000],
 			'features': [
 				'has_max_brightness',
 				'has_brightness',
@@ -600,15 +600,20 @@ class Remote:
 		if 'has_temperature' not in self._config['features']:
 			return False
 
-		temperature_input_coldest = self._config['temperature_input_range'][0]
-		temperature_input_warmest = self._config['temperature_input_range'][1]
-		temperature_output_coldest = self._config['temperature_output_range'][0]
-		temperature_output_warmest = self._config['temperature_output_range'][1]
+		temperature_input_coldest = self._config['temperature_input_range'][0] # e.g. 6500
+		temperature_input_warmest = self._config['temperature_input_range'][1] # e.g. 3000
+		temperature_output_coldest = self._config['temperature_output_range'][0] # e.g. 0
+		temperature_output_warmest = self._config['temperature_output_range'][1] # e.g. 9
+
+		# If there is only one supported color temperature, we are already at that temperature
+		# Make no adjustment to the temperature to account for small variances
+		if temperature_input_coldest == temperature_input_warmest:
+			return True
 
 		# Clamp the color temperature to something this remote supports
-		if kelvins < min(temperature_input_warmest, temperature_input_coldest):
+		if kelvins < temperature_input_warmest:
 			kelvins = temperature_input_warmest
-		elif kelvins > max(temperature_input_coldest, temperature_input_warmest):
+		elif kelvins > temperature_input_coldest:
 			kelvins = temperature_input_coldest
 
 		temperature = self._scale_int(kelvins, temperature_input_coldest, temperature_input_warmest, temperature_output_coldest, temperature_output_warmest)
@@ -617,7 +622,7 @@ class Remote:
 		if 'can_set_temperature' in self._config['features']:
 			return self._set_temperature(temperature, zone)
 		else:
-			return self._step_temperature(temperature, temperature_output_warmest, temperature_output_coldest, zone)
+			return self._step_temperature(temperature, temperature_output_coldest, temperature_output_warmest, zone)
 
 	def on(self, zone = None, try_hard = False):
 		if zone is None:
