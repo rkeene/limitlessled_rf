@@ -10,7 +10,7 @@ class Remote:
 	_remote_type_parameters_map = {
 		'rgbw': {
 			'retries':  10,
-			'delay':    0.001,
+			'delay':    0.05,
 			'channels': [9, 40, 71],
 			'syncword': [0x258B, 0x147A],
 			'features': [
@@ -109,6 +109,7 @@ class Remote:
 	def __init__(self, radio, remote_type, remote_id, message_id = None, config = None):
 		# Pull in the config for this remote type
 		self._config = self._get_type_parameters(remote_type)
+		self._config['radio_queue'] = '__DEFAULT__'
 
 		# Allow the user to specify some more parameters
 		if config is not None:
@@ -146,7 +147,8 @@ class Remote:
 		return None
 
 	def _get_type_parameters(self, remote_type):
-		config = self._remote_type_parameters_map[remote_type]
+		config = {}
+		config.update(self._remote_type_parameters_map[remote_type])
 
 		# Supply default config values
 		if 'retries' not in config:
@@ -198,15 +200,18 @@ class Remote:
 		# Compute message body
 		body = [zone, button_id, message_id]
 
+		# Compute the whole message so far
+		message = header + body
+
 		# Compute message trailer
 		## Include a CRC, for good measure ?
-		crc = len(header) + len(body) + 1
+		crc = len(message) + 1
 		for byte in header + body:
 			crc = crc + byte
 		crc = crc & 0xff
 		trailer = [crc]
 
-		message = header + body + trailer
+		message = message + trailer
 
 		return message
 
@@ -371,9 +376,6 @@ class Remote:
 		return self._message_id
 
 	def _send_button(self, button_info):
-		# Configure radio parameters
-		self._radio.set_syncword(self._config['syncword'])
-
 		# Include the remote ID unless one was supplied
 		if 'remote_id' not in button_info:
 			button_info['remote_id'] = self._id
@@ -398,8 +400,8 @@ class Remote:
 		else:
 			retries = self._config['retries']
 
-		self._debug("Sending {}={} n={} times with a {}s delay".format(button_info, message, retries, delay))
-		self._radio.multi_transmit(message, self._config['channels'], retries, delay)
+		self._debug("Sending {}={} n={} times with a {}s delay to queue {}".format(button_info, message, retries, delay, self._config['radio_queue']))
+		self._radio.multi_transmit(message, self._config['channels'], retries, delay, syncword = self._config['syncword'], submit_queue = self._config['radio_queue'])
 
 		return True
 
@@ -445,9 +447,12 @@ class Remote:
 			getattr(self, "_max_{}".format(button_prefix))(zone)
 		else:
 			# Otherwise, step it
+			step_command = {'button': "{}_{}".format(button_prefix, initial_direction)}
+			if zone is not None:
+				step_command['zone'] = zone
 			for step in range(initial_steps):
 				self._debug("[INITIAL] Stepping {} {}".format(button_prefix, initial_direction))
-				self._send_button({'button': "{}_{}".format(button_prefix, initial_direction)})
+				self._send_button(step_command)
 
 		# Now that we have forced the value to the extreme, move in
 		# steps from that value to the desired value
@@ -456,22 +461,21 @@ class Remote:
 		else:
 			final_steps = initial_value - target_value
 
+		step_command = {'button': "{}_{}".format(button_prefix, final_direction)}
+		if zone is not None:
+			step_command['zone'] = zone
 		for step in range(final_steps):
 			self._debug("[FINAL] Stepping {} {}".format(button_prefix, final_direction))
-			self._send_button({'button': "{}_{}".format(button_prefix, final_direction)})
+			self._send_button(step_command)
 
 		return True
 
 	def _step_brightness(self, brightness, brightness_min, brightness_max, zone = None):
-		# Select the appropriate zone before sending the steps
-		# to ensure they reach the correct bulbs
-		self.on(zone, try_hard = False)
+		self.on(zone)
 		return self._step_value(brightness, brightness_min, brightness_max, 'brightness', zone)
 
 	def _step_temperature(self, temperature, temperature_min, temperature_max, zone = None):
-		# Select the appropriate zone before sending the steps
-		# to ensure they reach the correct bulbs
-		self.on(zone, try_hard = False)
+		self.on(zone)
 		return self._step_value(temperature, temperature_min, temperature_max, 'temperature', zone)
 
 	def _max_brightness(self, zone = None):
@@ -709,3 +713,6 @@ class Remote:
 
 		# Otherwise return with what we accept as temperature ranges
 		return self._config['temperature_input_range']
+
+	def get_radio(self):
+		return self._radio
