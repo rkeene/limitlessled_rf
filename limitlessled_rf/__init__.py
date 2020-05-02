@@ -9,7 +9,7 @@ class Remote:
 	}
 	_remote_type_parameters_map = {
 		'rgbw': {
-			'retries':  10,
+			'retries':  5,
 			'delay':    0.05,
 			'channels': [9, 40, 71],
 			'syncword': [0x258B, 0x147A],
@@ -192,7 +192,7 @@ class Remote:
 		# Some buttons need to be converted to zones
 		button_name = button_info['button']
 		if button_name in ['zone_on', 'zone_off', 'zone_max', 'zone_night']:
-			button_name = button_name + ':' + str(zone)
+			button_name = "{}:{}".format(button_name, zone)
 
 		# Look up the button
 		button_id = self._config['button_map'][button_name]
@@ -204,9 +204,9 @@ class Remote:
 		message = header + body
 
 		# Compute message trailer
-		## Include a CRC, for good measure ?
+		## Include a CRC, for good measure
 		crc = len(message) + 1
-		for byte in header + body:
+		for byte in message:
 			crc = crc + byte
 		crc = crc & 0xff
 		trailer = [crc]
@@ -377,6 +377,7 @@ class Remote:
 
 	def _send_button(self, button_info):
 		# Include the remote ID unless one was supplied
+		button_info = button_info.copy()
 		if 'remote_id' not in button_info:
 			button_info['remote_id'] = self._id
 
@@ -471,11 +472,9 @@ class Remote:
 		return True
 
 	def _step_brightness(self, brightness, brightness_min, brightness_max, zone = None):
-		self.on(zone)
 		return self._step_value(brightness, brightness_min, brightness_max, 'brightness', zone)
 
 	def _step_temperature(self, temperature, temperature_min, temperature_max, zone = None):
-		self.on(zone)
 		return self._step_value(temperature, temperature_min, temperature_max, 'temperature', zone)
 
 	def _max_brightness(self, zone = None):
