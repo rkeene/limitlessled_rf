@@ -5,14 +5,15 @@ import time
 
 class Remote:
 	_remote_type_alias_map = {
-		'fut089': 'rgb+cct'
+		'fut089': 'rgbcct'
 	}
 	_remote_type_parameters_map = {
 		'rgbw': {
-			'retries':  5,
-			'delay':    0.05,
+			'retries':  10,
+			'delay':    0.1,
 			'channels': [9, 40, 71],
 			'syncword': [0x258B, 0x147A],
+			'zones': [1, 2, 3, 4],
 			'features': [
 				'can_set_brightness',
 				'has_brightness',
@@ -57,6 +58,55 @@ class Remote:
 			'brightness_range': [0, 9],
 			'temperature_output_range': [0, 9],
 			'temperature_input_range':  [6500, 3000],
+			'zones': [1, 2, 3, 4],
+			'features': [
+				'has_max_brightness',
+				'has_brightness',
+				'has_temperature',
+				'is_white'
+			],
+			'button_map': {
+				'on':         0x05,
+				'off':        0x09,
+				'max':        0x15,
+				'night':      0x19,
+				'zone_on:1':  0x08,
+				'zone_on:2':  0x0D,
+				'zone_on:3':  0x07,
+				'zone_on:4':  0x02,
+				'zone_max:1': 0x18,
+				'zone_max:2': 0x1D,
+				'zone_max:3': 0x17,
+				'zone_max:4': 0x12,
+				'zone_off:1': 0x0B,
+				'zone_off:2': 0x03,
+				'zone_off:3': 0x0A,
+				'zone_off:4': 0x06,
+				'zone_night:1': 0x1B,
+				'zone_night:2': 0x13,
+				'zone_night:3': 0x1A,
+				'zone_night:4': 0x16,
+				'brightness_up':    0x0C,
+				'brightness_down':  0x04,
+				'temperature_up':   0x0E,
+				'temperature_down': 0x0F
+			}
+		},
+		'lyh_cct': {
+			'retries':  10,
+			'delay':    0.1,
+			'channels': [24],
+			'syncword': [0x6F67, 0xA118],
+			'message_length': 14,
+			'format_config': {
+				'crc_enabled': 0,
+				'packet_length_encoded': 0,
+				'auto_term_tx': 0
+			},
+			'brightness_range': [0, 9],
+			'temperature_output_range': [0, 9],
+			'temperature_input_range':  [6500, 3000],
+			'zones': [1, 2, 3],
 			'features': [
 				'has_max_brightness',
 				'has_brightness',
@@ -92,7 +142,7 @@ class Remote:
 		}
 	}
 	_remote_type_parameters_map_unimplemented = {
-		'rgb+cct': {
+		'rgbcct': {
 			'channels': [8, 39, 70],
 			'syncword': [0x1809, 0x7236]
 		},
@@ -178,6 +228,22 @@ class Remote:
 			button_info['zone']   = int(button_name_zone[1])
 
 		return button_info
+
+	def _compute_button_message_lyh_cct(self, button_info):
+		# XXX
+		return None
+
+	def _parse_button_message_lyh_cct(self, button_message):
+		return {'raw': button_message}
+		return None
+
+	def _pair_lyh_cct(self, zone):
+		# XXX
+		return None
+
+	def _unpair_lyh_cct(self, zone):
+		# XXX
+		return None
 
 	def _compute_button_message_cct(self, button_info):
 		remote_id = button_info['remote_id']
@@ -539,9 +605,14 @@ class Remote:
 
 	def raw_read_button(self):
 		channel = self._config['channels'][0]
-		self._radio.set_syncword(self._config['syncword'])
+		self._radio.set_syncword(self._config['syncword'], submit_queue = None)
 		self._radio.start_listening(channel)
-		data = self._radio.receive(channel = channel, wait = True, wait_time = 0)
+
+		# Some protocols are not length encoded, specify the length instead
+		length = self._config.get('message_length', None)
+		format_config = self._config.get('format_config', None)
+
+		data = self._radio.receive(channel = channel, wait = True, wait_time = 0.1, length = length, format_config = format_config)
 		message = self._parse_button_message(data)
 		return message
 
@@ -687,9 +758,7 @@ class Remote:
 
 	# Methods to query remote identity and state
 	def get_zone_ids(self):
-		# All current remotes have 4 zones
-		# XXX Make this a property
-		return [1, 2, 3, 4]
+		return self._config('zones', [1, 2, 3, 4])
 
 	def get_type(self):
 		return self._type
@@ -707,11 +776,4 @@ class Remote:
 	def get_temperature_range(self):
 		# If the remote has no control over the temperature this
 		# query gets a null response
-		if 'temperature_input_range' not in self._config:
-			return None
-
-		# Otherwise return with what we accept as temperature ranges
-		return self._config['temperature_input_range']
-
-	def get_radio(self):
-		return self._radio
+		return self._config.get('temperature_input_range', None)
