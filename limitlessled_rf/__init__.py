@@ -758,7 +758,7 @@ class Remote:
 
 	# Methods to query remote identity and state
 	def get_zone_ids(self):
-		return self._config('zones', [1, 2, 3, 4])
+		return self._config.get('zones', [1, 2, 3, 4])
 
 	def get_type(self):
 		return self._type
