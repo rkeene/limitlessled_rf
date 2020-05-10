@@ -18,6 +18,7 @@ class Remote:
 				'can_set_brightness',
 				'has_brightness',
 				'has_white',
+				'has_night',
 				'has_color'
 			],
 			'brightness_range': [0, 25],
@@ -63,6 +64,7 @@ class Remote:
 				'has_max_brightness',
 				'has_brightness',
 				'has_temperature',
+				'has_night',
 				'is_white'
 			],
 			'button_map': {
@@ -736,6 +738,20 @@ class Remote:
 			message['retries'] = self._config['retries'] * 2
 			message['delay'] = self._config['delay'] * 2
 
+		return self._send_button(message)
+
+	def night(self, zone = None):
+		# If the bulbs do not support night, nothing needs to be done
+		if 'has_night' not in self._config['features']:
+			return False
+
+		if zone is None:
+			message = {'button': 'night'}
+		else:
+			message = {
+				'button': 'zone_night',
+				'zone': zone
+			}
 		return self._send_button(message)
 
 	def white(self, zone = None):
