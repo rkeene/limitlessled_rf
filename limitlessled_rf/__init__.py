@@ -53,7 +53,7 @@ class Remote:
 		},
 		'cct': {
 			'retries':  10,
-			'delay':    0.1,
+			'delay':    0.2,
 			'channels': [4, 39, 74],
 			'syncword': [0x55AA, 0x050A],
 			'brightness_range': [0, 9],
@@ -95,11 +95,11 @@ class Remote:
 			}
 		},
 		'lyh_cct': {
-			'retries':  10,
-			'delay':    0.1,
+			'retries':  50,
+			'delay':    0.2,
 			'channels': [24],
 			'syncword': [0x6F67, 0xA118],
-			'message_length': 14,
+			'message_length': 13,
 			'format_config': {
 				'crc_enabled': 0,
 				'packet_length_encoded': 0,
@@ -110,7 +110,6 @@ class Remote:
 			'temperature_input_range':  [6500, 3000],
 			'zones': [1, 2, 3],
 			'features': [
-				'has_max_brightness',
 				'has_brightness',
 				'has_temperature',
 				'is_white'
@@ -232,8 +231,75 @@ class Remote:
 		return button_info
 
 	def _compute_button_message_lyh_cct(self, button_info):
-		# XXX
-		return None
+		# XXX: This protocol has not been completely reversed yet
+		if 'zone' in button_info:
+			if button_info['zone'] is None:
+				del button_info['zone']
+
+		message_id = button_info['message_id']
+
+		retval = None
+
+		if button_info['button'] == 'on' and 'zone' not in button_info:
+			if 'zone' not in button_info:
+				retval = [0x85, 0xb7, 0x80, 0x88, 0x91, 0xb1, 0x6f, 0x00, 0x66, 0x01, 0x59, 0xad, 0x07]
+			elif button_info['zone'] == 1:
+				retval = [0x85, 0xb7, 0x80, 0x88, 0x91, 0xb1, 0x68, 0x00, 0x67, 0x01, 0xd3, 0xff, 0x46]
+			elif button_info['zone'] == 2:
+				retval = [0x85, 0xb7, 0x80, 0x88, 0x91, 0x31, 0x69, 0x80, 0x67, 0x01, 0xd4, 0xc8, 0x11]
+			elif button_info['zone'] == 3:
+				retval = [0x85, 0xb7, 0x80, 0x88, 0x91, 0x31, 0x6a, 0x00, 0x68, 0x81, 0x55, 0xe0, 0x72]
+
+		if button_info['button'] == 'off':
+			if 'zone' not in button_info:
+				retval = [0x05, 0xb0, 0x80, 0x88, 0x91, 0xb1, 0x6f, 0x80, 0x66, 0x01, 0xd2, 0xf6, 0x46]
+			elif button_info['zone'] == 1:
+				retval = [0x05, 0xb0, 0x80, 0x88, 0x91, 0xb1, 0x68, 0x80, 0x68, 0x01, 0x4d, 0x4f, 0x0a]
+			elif button_info['zone'] == 2:
+				retval = [0x05, 0xb0, 0x80, 0x88, 0x91, 0x31, 0x69, 0x00, 0x69, 0x01, 0x4e, 0x80, 0x41]
+			elif button_info['zone'] == 3:
+				retval = [0x05, 0xb0, 0x80, 0x88, 0x91, 0x31, 0x6a, 0x80, 0x69, 0x81, 0xcf, 0x6f, 0x68]
+
+		if button_info['button'] == 'brightness_up':
+			if message_id % 2 == 0:
+				retval = [0x05, 0xb3, 0x80, 0x88, 0x91, 0xb1, 0x6f, 0x00, 0x39, 0x81, 0xa7, 0x33, 0x7e]
+			else:
+				retval = [0x05, 0xb3, 0x80, 0x88, 0x91, 0xb1, 0x6f, 0x00, 0x3c, 0x81, 0x2a, 0x63, 0x18]
+
+		if button_info['button'] == 'brightness_down':
+			if message_id % 2 == 0:
+				retval = [0x85, 0xb2, 0x80, 0x88, 0x91, 0xb1, 0x6f, 0x00, 0x3d, 0x01, 0x2b, 0xc6, 0x61]
+			else:
+				retval = [0x85, 0xb2, 0x80, 0x88, 0x91, 0xb1, 0x6f, 0x00, 0x45, 0x01, 0xb3, 0x1d, 0x3f]
+
+		if button_info['button'] == 'temperature_up':
+			if message_id % 2 == 0:
+				retval = [0x85, 0xb4, 0x80, 0x88, 0x91, 0xb1, 0x6f, 0x00, 0x4b, 0x01, 0xbb, 0x9c, 0x4b]
+			else:
+				retval = [0x85, 0xb4, 0x80, 0x88, 0x91, 0xb1, 0x6f, 0x80, 0x4e, 0x81, 0x3e, 0x26, 0x00]
+
+		if button_info['button'] == 'temperature_down':
+			if message_id % 2 == 0:
+				retval = [0x05, 0xb5, 0x80, 0x88, 0x91, 0xb1, 0x6f, 0x80, 0x46, 0x01, 0x37, 0xd5, 0x69]
+			else:
+				retval = [0x05, 0xb5, 0x80, 0x88, 0x91, 0xb1, 0x6f, 0x80, 0x4a, 0x01, 0x3b, 0x1a, 0x06]
+
+		if button_info['button'] == 'max':
+			retval = [0x85, 0xb7, 0x80, 0x88, 0x91, 0xb1, 0x6f, 0x80, 0x66, 0x81, 0xd9, 0x07, 0x22]
+
+		if retval is None:
+			self._debug("Unsupported button: {}".format(button_info))
+			return None
+
+		# XXX: This probably breaks the CRC :-(
+		if 'zone' in button_info:
+			retval[6] = (retval[6] & 0xf0) | (0x07 + button_info['zone'])
+		else:
+			retval[6] = (retval[6] & 0xf0) | 0x0f
+
+		retval.append(0x00)
+		retval.append(0x0F)
+		return retval
 
 	def _parse_button_message_lyh_cct(self, button_message):
 		return {'raw': button_message}
@@ -469,8 +535,10 @@ class Remote:
 		else:
 			retries = self._config['retries']
 
-		self._debug("Sending {}={} n={} times with a {}s delay to queue {}".format(button_info, message, retries, delay, self._config['radio_queue']))
-		self._radio.multi_transmit(message, self._config['channels'], retries, delay, syncword = self._config['syncword'], submit_queue = self._config['radio_queue'])
+		format_config = self._config.get('format_config', None)
+
+		self._debug("Sending {}={} n={} times with a {}s delay to queue {}, format = {}".format(button_info, message, retries, delay, self._config['radio_queue'], format_config))
+		self._radio.multi_transmit(message, self._config['channels'], retries, delay, syncword = self._config['syncword'], submit_queue = self._config['radio_queue'], format_config = format_config)
 
 		return True
 
