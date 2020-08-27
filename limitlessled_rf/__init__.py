@@ -510,7 +510,7 @@ class Remote:
 		self._message_id = (self._message_id + 1) & 0xff
 		return self._message_id
 
-	def _send_button(self, button_info):
+	def _send_button(self, button_info, post_delay = None):
 		# Include the remote ID unless one was supplied
 		button_info = button_info.copy()
 		if 'remote_id' not in button_info:
@@ -538,12 +538,18 @@ class Remote:
 
 		format_config = self._config.get('format_config', None)
 
+		if post_delay is not None:
+			delay = post_delay
+
 		self._debug("Sending {}={} n={} times with a {}s delay to queue {}, format = {}".format(button_info, message, retries, delay, self._config['radio_queue'], format_config))
 		self._radio.multi_transmit(message, self._config['channels'], retries, delay, syncword = self._config['syncword'], submit_queue = self._config['radio_queue'], format_config = format_config)
 
 		return True
 
-	def _set_brightness(self, brightness, zone = None):
+	def _set_brightness(self, brightness, zone = None, transition = None):
+		if transition is not None:
+			self._debug('Tranisition not supported for SET-type bulbs (yet)')
+
 		if zone is None:
 			message = {'button': 'set_brightness'}
 		else:
@@ -556,7 +562,7 @@ class Remote:
 
 		return self._send_button(message)
 
-	def _step_value(self, target_value, target_range_min, target_range_max, button_prefix, zone, midpoint = None):
+	def _step_value(self, target_value, target_range_min, target_range_max, button_prefix, zone, midpoint = None, transition = None):
 		# Step all the way to the nearest extreme before moving it to
 		# where it should be
 		target_range = target_range_max - target_range_min + 1
@@ -603,20 +609,35 @@ class Remote:
 		step_command = {'button': "{}_{}".format(button_prefix, final_direction)}
 		if zone is not None:
 			step_command['zone'] = zone
+
+		transition_delay = None
+		self._debug("[FINAL] t = {}, fs = {}".format(transition, final_steps))
+		if transition is not None and final_steps > 1:
+			transition_delay = transition / (final_steps - 1)
+		self._debug("[FINAL] td = {}".format(transition_delay))
+
 		for step in range(final_steps):
-			self._debug("[FINAL] Stepping {} {}".format(button_prefix, final_direction))
-			self._send_button(step_command)
+			if step == (final_steps - 1):
+				transition_delay = None
+				self._debug("[FINAL] ftd = {}".format(transition_delay))
+
+			self._debug("[FINAL] Stepping {} {} with a delay of {} (ms) afterwards".format(button_prefix, final_direction, transition_delay))
+			self._send_button(step_command, post_delay = transition_delay)
 
 		return True
 
-	def _step_brightness(self, brightness, brightness_min, brightness_max, zone = None):
+	def _step_brightness(self, brightness, brightness_min, brightness_max, zone = None, transition = None):
 		# For setting the brightness, set a change-overpoint at around
 		# 75%, where below this value we will go to the dimmest and
 		# step up and above this point it will go to the brightest
 		# and step down.  This is to avoid getting bright then dimming
 		# which is much more jarring than getting dim and brightening.
-		brightness_changeover = ((brightness_max - brightness_min) * 0.75) + brightness_min;
-		return self._step_value(brightness, brightness_min, brightness_max, 'brightness', zone, midpoint = brightness_changeover)
+		if transition is None:
+			brightness_changeover = ((brightness_max - brightness_min) * 0.75) + brightness_min
+		else:
+			brightness_changeover = brightness_max * 2
+
+		return self._step_value(brightness, brightness_min, brightness_max, 'brightness', zone, midpoint = brightness_changeover, transition = transition)
 
 	def _step_temperature(self, temperature, temperature_min, temperature_max, zone = None):
 		return self._step_value(temperature, temperature_min, temperature_max, 'temperature', zone)
@@ -694,19 +715,19 @@ class Remote:
 		message = self._parse_button_message(data)
 		return message
 
-	def set_brightness(self, brightness, zone = None):
+	def set_brightness(self, brightness, zone = None, transition = None):
 		if 'has_brightness' not in self._config['features']:
 			return False
 
 		if brightness < 0 or brightness > 255:
 			return False
 
-		self._debug("Setting brightness to {}".format(brightness))
+		self._debug("Setting brightness to {} with transition {} s".format(brightness, transition))
 		if brightness == 0:
 			self._debug("Really setting to off")
 			return self.off(zone)
 
-		if brightness == 255:
+		if brightness == 255 and transition is None:
 			if 'has_max_brightness' in self._config['features']:
 				return self._max_brightness(zone)
 
@@ -716,9 +737,9 @@ class Remote:
 		brightness = self._scale_int(brightness, 1, 255, self._config['brightness_range'][0], self._config['brightness_range'][1])
 
 		if 'can_set_brightness' in self._config['features']:
-			return self._set_brightness(brightness, zone)
+			return self._set_brightness(brightness, zone, transition)
 		else:
-			return self._step_brightness(brightness, brightness_min, brightness_max, zone)
+			return self._step_brightness(brightness, brightness_min, brightness_max, zone, transition)
 
 	def set_color(self, rgb, zone = None):
 		# Compute the color value from the RGB value
