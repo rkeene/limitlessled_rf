@@ -611,15 +611,12 @@ class Remote:
 			step_command['zone'] = zone
 
 		transition_delay = None
-		self._debug("[FINAL] t = {}, fs = {}".format(transition, final_steps))
 		if transition is not None and final_steps > 1:
 			transition_delay = transition / (final_steps - 1)
-		self._debug("[FINAL] td = {}".format(transition_delay))
 
 		for step in range(final_steps):
 			if step == (final_steps - 1):
 				transition_delay = None
-				self._debug("[FINAL] ftd = {}".format(transition_delay))
 
 			self._debug("[FINAL] Stepping {} {} with a delay of {} (ms) afterwards".format(button_prefix, final_direction, transition_delay))
 			self._send_button(step_command, post_delay = transition_delay)
