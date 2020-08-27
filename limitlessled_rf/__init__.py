@@ -52,8 +52,8 @@ class Remote:
 			}
 		},
 		'cct': {
-			'retries':  10,
-			'delay':    0.2,
+			'retries':  3,
+			'delay':    0.11,
 			'channels': [4, 39, 74],
 			'syncword': [0x55AA, 0x050A],
 			'brightness_range': [0, 9],
@@ -95,7 +95,7 @@ class Remote:
 			}
 		},
 		'lyh_cct': {
-			'retries':  50,
+			'retries':  70,
 			'delay':    0.2,
 			'channels': [24],
 			'syncword': [0x6F67, 0xA118],
@@ -103,6 +103,7 @@ class Remote:
 			'format_config': {
 				'crc_enabled': 0,
 				'packet_length_encoded': 0,
+				'auto_ack': 1,
 				'auto_term_tx': 0
 			},
 			'brightness_range': [0, 9],
@@ -555,11 +556,12 @@ class Remote:
 
 		return self._send_button(message)
 
-	def _step_value(self, target_value, target_range_min, target_range_max, button_prefix, zone):
+	def _step_value(self, target_value, target_range_min, target_range_max, button_prefix, zone, midpoint = None):
 		# Step all the way to the nearest extreme before moving it to
 		# where it should be
 		target_range = target_range_max - target_range_min + 1
-		midpoint = (target_range / 2) + target_range_min
+		if midpoint is None:
+			midpoint = (target_range / 2) + target_range_min
 
 		# Move to the "initial" value where we force the value
 		# to the extreme, then move it to its final value
@@ -608,7 +610,13 @@ class Remote:
 		return True
 
 	def _step_brightness(self, brightness, brightness_min, brightness_max, zone = None):
-		return self._step_value(brightness, brightness_min, brightness_max, 'brightness', zone)
+		# For setting the brightness, set a change-overpoint at around
+		# 75%, where below this value we will go to the dimmest and
+		# step up and above this point it will go to the brightest
+		# and step down.  This is to avoid getting bright then dimming
+		# which is much more jarring than getting dim and brightening.
+		brightness_changeover = ((brightness_max - brightness_min) * 0.75) + brightness_min;
+		return self._step_value(brightness, brightness_min, brightness_max, 'brightness', zone, midpoint = brightness_changeover)
 
 	def _step_temperature(self, temperature, temperature_min, temperature_max, zone = None):
 		return self._step_value(temperature, temperature_min, temperature_max, 'temperature', zone)
